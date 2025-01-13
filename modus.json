@@ -6,5 +6,39 @@
       "path": "/graphql",
       "auth": "bearer-token"
     }
+  },
+  "models": {
+    "text-generator": {
+      "sourceModel": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+      "provider": "hugging-face",
+      "connection": "hypermode"
+    }
+  },
+  "connections": {
+    "dgraph-grpc": {
+      "type": "dgraph",
+      "grpcTarget": "throbbing-field-480043.us-west-2.aws.cloud.dgraph.io:443",
+      "key": "{{DGRAPH_API_KEY}}"
+    },
+    "openai": {
+      "type": "http",
+      "baseUrl": "https://api.openai.com/",
+      "headers": {
+        "Authorization": "Bearer {{OPENAI_API_KEY}}"
+      }
+    },
+    "neo4j": {
+      "type": "neo4j",
+      "dbUri": "neo4j+s://59d93a41.databases.neo4j.io",
+      "username": "{{NEO4J_USERNAME}}",
+      "password": "{{NEO4J_PASSWORD}}"
+    },
+    "discord": {
+      "type": "http",
+      "baseUrl": "https://discord.com/api/v10/",
+      "headers": {
+        "Authorization": "{{TOKEN}}"
+      }
+    }
   }
 }
