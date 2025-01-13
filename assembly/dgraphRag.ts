@@ -241,3 +241,55 @@ export function semanticSearchURL(url: string, searchQuery: string): string {
 
   return createEmptySearchResult();
 }
+
+export function semanticSearchCompany(
+  companyName: string,
+  searchQuery: string,
+): string {
+  if (
+    !companyName ||
+    !searchQuery ||
+    companyName.trim().length === 0 ||
+    searchQuery.trim().length === 0
+  ) {
+    return JSON.stringify<SearchResult[]>([]);
+  }
+
+  if (!isDatabaseConfigured()) {
+    return JSON.stringify<SearchResult[]>([]);
+  }
+
+  const queryEmbedding = getStringEmbedding(searchQuery);
+  if (queryEmbedding.length === 0) {
+    return JSON.stringify<SearchResult[]>([]);
+  }
+
+  const embedStr = embeddingToString(queryEmbedding);
+  const vars = new neo4j.Variables();
+  vars.set("companyName", companyName);
+  vars.set("embedding", embedStr);
+
+  const cypherQuery = `
+      MATCH (c:Company {name: $companyName})-[:OWNS]->(u:URL)-[:HAS_DOCUMENT]->(d:Document)-[:CONTAINS]->(ch:Chunk)
+      WHERE ch.embedding IS NOT NULL
+      WITH u, ch, gds.similarity.cosine(
+        ch.embedding,
+        [x IN split($embedding, ',') | toFloat(x)]
+      ) AS similarity
+      ORDER BY similarity DESC
+      LIMIT 10
+      WITH u.url as url, ch.content as content, similarity as score
+      RETURN collect({
+        url: url,
+        content: content,
+        score: toFloat(score)
+      }) as results
+    `;
+
+  const result = neo4j.executeQuery("neo4j", cypherQuery, vars);
+  if (result.Records.length > 0) {
+    return result.Records[0].get("results");
+  }
+
+  return JSON.stringify<SearchResult[]>([]);
+}
