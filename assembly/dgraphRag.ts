@@ -196,3 +196,48 @@ export function isCompanyPresent(companyName: string): boolean {
   }
   return false;
 }
+
+export function semanticSearchURL(url: string, searchQuery: string): string {
+  if (
+    !url ||
+    !searchQuery ||
+    url.trim().length === 0 ||
+    searchQuery.trim().length === 0
+  ) {
+    return createEmptySearchResult();
+  }
+
+  const queryEmbedding = getStringEmbedding(searchQuery);
+  if (queryEmbedding.length === 0) {
+    return createEmptySearchResult();
+  }
+
+  const embedStr = embeddingToString(queryEmbedding);
+  const vars = new neo4j.Variables();
+  vars.set("url", url);
+  vars.set("embedding", embedStr);
+
+  const cypherQuery = `
+      MATCH (u:URL {url: $url})-[:HAS_DOCUMENT]->(d:Document)-[:CONTAINS]->(ch:Chunk)
+      WHERE ch.embedding IS NOT NULL
+      WITH ch, gds.similarity.cosine(
+        ch.embedding,
+        [x IN split($embedding, ',') | toFloat(x)]
+      ) AS similarity
+      ORDER BY similarity DESC
+      LIMIT 1
+      WITH $url as url, ch.content as content, similarity as score
+      RETURN {
+        url: url,
+        content: content,
+        score: toFloat(score)
+      } as result
+    `;
+
+  const result = neo4j.executeQuery("neo4j", cypherQuery, vars);
+  if (result.Records.length > 0) {
+    return result.Records[0].get("result");
+  }
+
+  return createEmptySearchResult();
+}
