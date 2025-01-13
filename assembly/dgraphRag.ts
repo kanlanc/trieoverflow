@@ -1,4 +1,4 @@
-import { http } from "@hypermode/modus-sdk-as";
+import { http, neo4j } from "@hypermode/modus-sdk-as";
 import { dgraph } from "@hypermode/modus-sdk-as";
 import { JSON } from "json-as";
 import { DiscordMessage, Thread } from "./classes";
@@ -175,4 +175,24 @@ export function addQuestionWithDiscordReferenceToDgraph(
   ).Uids;
 
   return uids;
+}
+
+export function isCompanyPresent(companyName: string): boolean {
+  if (!companyName || companyName.trim().length === 0) {
+    return false;
+  }
+
+  const vars = new neo4j.Variables();
+  vars.set("companyName", companyName);
+
+  const query = `
+      MATCH (c:Company {name: $companyName})
+      RETURN count(c) > 0 as exists
+    `;
+
+  const result = neo4j.executeQuery("neo4j", query, vars);
+  if (result.Records.length > 0) {
+    return result.Records[0].get("exists") === "true";
+  }
+  return false;
 }
